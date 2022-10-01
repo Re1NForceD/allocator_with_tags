@@ -1,68 +1,70 @@
 #include "allocator.hpp"
-#include <windows.h>
+#include <kernel.hpp>
+#include <block.hpp>
 #include <iostream>
+#include <vector>
 
-#define PAGELIMIT 100
-const size_t DEFAULT_ARENA = 50;
+#define ALIGN alignof(std::max_align_t)
+#define ROUND_BYTES(s) (((s) + (ALIGN - 1)) & ~(ALIGN - 1))
 
-constexpr size_t align4(size_t x) { return (((((x) - 1) >> 2) << 2) + 4); }
-
-static void* addressSpaceBegin = nullptr;
-static void* nextAddress = nullptr;
-static size_t pageSize = 0;
-
-struct alignas(unsigned int) DataHeader {
-    size_t size;
-    int busy;
-};
+std::vector<void*> arenas;
+block* findFit(size_t size);
 
 void* mem_alloc(size_t size)
 {
-    void* pointer = nullptr;
-    auto s = align4(size) + sizeof(DataHeader);
-    if (!addressSpaceBegin)
+    auto alignSize = ROUND_BYTES(size);
+    block* header = (block*)findFit(alignSize);
+    header->split(alignSize);
+    header->busy |= BUSY;
+    return (void*)((char*)header + sizeof(struct block));
+}
+
+block* findFit(size_t size)
+{
+    for (const void* arena: arenas)
     {
-        SYSTEM_INFO sSysInfo;
-        GetSystemInfo(&sSysInfo);
-        pageSize = sSysInfo.dwPageSize;
-        std::cout << "First allocation! Page size: " << pageSize << ". Number of pages in arena: " << DEFAULT_ARENA << ". Header size: " << sizeof(DataHeader) << std::endl;
-        addressSpaceBegin = VirtualAlloc(
-                     NULL,
-                     DEFAULT_ARENA * pageSize,
-                     MEM_RESERVE | MEM_COMMIT,
-                     PAGE_READWRITE);
-        // DataHeader* header = (DataHeader*)addressSpaceBegin;
-        //header->size =
-        nextAddress = addressSpaceBegin;
+        block* b = (block*)arena;
+        while(true) {
+            if (b->sizeCurrent > size)
+                return b;
+                
+            if (b->busy & LAST) break;
+            b = b->next();
+        }
     }
-    std::cout << "SHISH!" << std::endl;
-    pointer = nextAddress;
-    DataHeader* header = (DataHeader*)pointer;
-    header->size = align4(size);
-    header->busy = 1;
-    nextAddress = (void*)((char*)pointer + s);
-    std::cout << s << " bytes allocated!" << std::endl;
-    return (void*)((char*)pointer + sizeof(DataHeader));
+
+    arenas.push_back(kernel_alloc(ROUND_BYTES(size)));
+    return (block*)(arenas[arenas.size() - 1]);
 }
 
 void mem_free(void* ptr)
 {
-    if (ptr)
-    {
-        DataHeader* header = (DataHeader*)ptr - 1;
-        std::cout << header->size + sizeof(DataHeader) << " bytes freed!" << std::endl;
-        if (header->busy) {
-            header->busy = 0;
-        }
-    }
+    block* header = (block*)((char*)ptr - sizeof(struct block));
+    header->busy &= ~BUSY;
+    header->merge();
 }
 
 void* mem_realloc(void* ptr, size_t size)
 {
-    return nullptr;
+    return ptr;
 }
 
 void mem_show()
 {
+    int i = 0;
+    for (const void* arena: arenas)
+    {
+        std::cout << "Arena " << ++i << ":" << std::endl;
+        int j = 0;
+        block* b = (block*)arena;
+        while(true) {
+            std::cout << "\tBlock " << ++j << ":" << std::endl;
+            std::cout << "\t\tcurr size " << b->sizeCurrent << std::endl;
+            std::cout << "\t\tprev size " << b->sizePrevious << std::endl;
+            std::cout << "\t\tflags " << !!(b->busy & LAST) << " " << !!(b->busy & FIRST) << " " << !!(b->busy & BUSY) << std::endl;
 
+            if (b->busy & LAST) break;
+            b = b->next();
+        }
+    }
 }
