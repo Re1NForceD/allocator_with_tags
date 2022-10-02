@@ -7,6 +7,8 @@ project(OSLab1
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_CXX_FLAGS "-EHsc -Wall -W4 -O2")
+
 add_library(allocator "${CMAKE_CURRENT_SOURCE_DIR}/allocator.cpp")
 target_include_directories(allocator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
