@@ -3,6 +3,7 @@
 #include "block.hpp"
 #include <windows.h>
 #include <iostream>
+#include <string>
 
 void* kernel_alloc(size_t bytes)
 {
@@ -29,13 +30,13 @@ void* kernel_alloc(size_t bytes)
             pages = DEFAULT_ARENA;
     }
 
-    std::cout << "Arena allocated! Number of " << (pageSize ? "pages" : "bytes") <<" in arena: " << pages << std::endl;
+    std::cout << "Allocating arena... Number of " << (pageSize ? "pages" : "bytes") <<" in arena: " << pages << std::endl;
     block* arena = (block*)VirtualAlloc(NULL,
                                         pages * (pageSize ? pageSize : 1),
                                         MEM_RESERVE | MEM_COMMIT,
                                         PAGE_READWRITE);
-    if (!arena)
-        throw "Something went wrong!";
+    if (!arena) // maximum possible 1934423032
+        throw std::string("Error while allocating memory!");
 
     arena->sizeCurrent = pages * (pageSize ? pageSize : 1) - sizeof(struct block);
     arena->sizePrevious = 0;

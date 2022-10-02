@@ -3,6 +3,7 @@
 #include <block.hpp>
 #include <iostream>
 #include <vector>
+#include <string>
 
 #define ALIGN alignof(std::max_align_t)
 #define ROUND_BYTES(s) (((s) + (ALIGN - 1)) & ~(ALIGN - 1))
@@ -12,7 +13,11 @@ block* findFit(size_t size);
 
 void* mem_alloc(size_t size)
 {
+    std::cout << "Request for " << size << " bytes" << std::endl;
     auto alignSize = ROUND_BYTES(size);
+    std::cout << "Align for " << ALIGN << "... Align size is " << alignSize << " bytes" << std::endl;
+    if (alignSize < size) throw std::string("Size overflow while aligns!");
+
     block* header = (block*)findFit(alignSize);
     header->split(alignSize);
     header->busy |= BUSY;
@@ -27,7 +32,7 @@ block* findFit(size_t size)
         while(true) {
             if (b->sizeCurrent > size)
                 return b;
-                
+
             if (b->busy & LAST) break;
             b = b->next();
         }
@@ -67,4 +72,6 @@ void mem_show()
             b = b->next();
         }
     }
+    if (!arenas.size())
+        std::cout << "No allocated memory with this allocator" << std::endl;
 }
