@@ -17,6 +17,7 @@ void* mem_alloc(size_t size)
     auto alignSize = ROUND_BYTES(size);
     std::cout << "Align for " << ALIGN << "... Align size is " << alignSize << " bytes" << std::endl;
     if (alignSize < size) throw std::string("Size overflow while aligns!");
+    alignSize += sizeof(struct block);
 
     block* header = (block*)findFit(alignSize);
     header->split(alignSize);
@@ -59,6 +60,7 @@ void mem_show()
     int i = 0;
     for (const void* arena: arenas)
     {
+        size_t arenaSize = 0;
         std::cout << "Arena " << ++i << ":" << std::endl;
         int j = 0;
         block* b = (block*)arena;
@@ -68,9 +70,11 @@ void mem_show()
             std::cout << "\t\tprev size " << b->sizePrevious << std::endl;
             std::cout << "\t\tflags " << !!(b->busy & LAST) << " " << !!(b->busy & FIRST) << " " << !!(b->busy & BUSY) << std::endl;
 
+            arenaSize += sizeof(struct block) + b->sizeCurrent;
             if (b->busy & LAST) break;
             b = b->next();
         }
+        std::cout << "\tTotal bytes: " << arenaSize << std::endl;
     }
     if (!arenas.size())
         std::cout << "No allocated memory with this allocator" << std::endl;

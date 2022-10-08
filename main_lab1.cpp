@@ -2,6 +2,7 @@
 #include <iostream>
 #include <list>
 #include <string>
+#define SIZE_MAX 0xFFFF
 
 int main()
 {
@@ -24,7 +25,7 @@ int main()
 
     try
     {
-        void* n = mem_alloc(-1);
+        void* n = mem_alloc(SIZE_MAX);
         mem_show();
         mem_free(n);
     }
