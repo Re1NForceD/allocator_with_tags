@@ -4,11 +4,10 @@
 #include <alignDefs.hpp>
 
 #include <iostream>
-#include <vector>
+#include <list>
 #include <string>
 
-
-std::vector<void*> arenas;
+std::list<block*> arenas;
 block* findFit(size_t size);
 
 void* mem_alloc(size_t size)
@@ -26,9 +25,9 @@ void* mem_alloc(size_t size)
 
 block* findFit(size_t size)
 {
-    for (const void* arena: arenas)
+    for (block* arena: arenas)
     {
-        block* b = (block*)arena;
+        block* b = arena;
         while(true) {
             if (b->sizeCurrent > size)
                 return b;
@@ -39,7 +38,7 @@ block* findFit(size_t size)
     }
 
     arenas.push_back(kernel_alloc(ROUND_BYTES(size) + sizeof(struct block)));
-    return (block*)(arenas[arenas.size() - 1]);
+    return arenas.back();
 }
 
 void mem_free(void* ptr)
@@ -47,6 +46,14 @@ void mem_free(void* ptr)
     block* header = (block*)((char*)ptr - sizeof(struct block));
     header->busy &= ~BUSY;
     header->merge();
+
+    if ((!header->prev() && !header->isBusy() && !header->next()) || (header->prev() && !header->prev()->isBusy() && !header->prev()->next()))
+    {
+        auto arena = std::find(arenas.begin(), arenas.end(), header->prev() ? header->prev() : header);
+        kernel_free(*arena);
+        if (arena != arenas.end())
+            arenas.erase(arena);
+    }
 }
 
 void* mem_realloc(void* ptr, size_t size)
@@ -57,12 +64,12 @@ void* mem_realloc(void* ptr, size_t size)
 void mem_show()
 {
     int i = 0;
-    for (const void* arena: arenas)
+    for (block* arena: arenas)
     {
         size_t arenaSize = 0;
         std::cout << "Arena " << ++i << ":" << std::endl;
         int j = 0;
-        block* b = (block*)arena;
+        block* b = arena;
         while(true) {
             std::cout << "\tBlock " << ++j << ":" << std::endl;
             std::cout << "\t\tprev size " << b->sizePrevious << std::endl;
@@ -81,7 +88,7 @@ void mem_show()
 
 void freeAllMem() // for testing
 {
-    for (void* arena: arenas)
+    for (block* arena: arenas)
     {
         kernel_free(arena);
     }

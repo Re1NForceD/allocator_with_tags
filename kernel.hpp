@@ -1,4 +1,5 @@
 #pragma once
+#include "block.hpp"
 
-void* kernel_alloc(size_t bytes);
-void* kernel_free(void* arena);
+block* kernel_alloc(size_t bytes);
+void kernel_free(void* arena);

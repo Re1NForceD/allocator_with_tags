@@ -1,12 +1,11 @@
 #include "kernel.hpp"
 #include "config.hpp"
-#include "block.hpp"
 
 #include <windows.h>
 #include <iostream>
 #include <string>
 
-void* kernel_alloc(size_t bytes)
+block* kernel_alloc(size_t bytes)
 {
     static size_t pageSize = -1; // TODO add allocated pages counter and use PAGE_LIMIT macros
     if (pageSize == -1)
@@ -42,10 +41,10 @@ void* kernel_alloc(size_t bytes)
     arena->sizeCurrent = pages * (pageSize ? pageSize : 1) - sizeof(struct block);
     arena->sizePrevious = 0;
     arena->busy = FIRST | LAST;
-    return (void*)arena;
+    return arena;
 }
 
-void* kernel_free(void* arena)
+void kernel_free(void* arena)
 {
     if (!VirtualFree(arena, 0, MEM_RELEASE))
         throw std::string("Error during freeing memory!");
