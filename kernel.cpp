@@ -1,6 +1,7 @@
 #include "kernel.hpp"
 #include "config.hpp"
 #include "block.hpp"
+
 #include <windows.h>
 #include <iostream>
 #include <string>
@@ -42,4 +43,10 @@ void* kernel_alloc(size_t bytes)
     arena->sizePrevious = 0;
     arena->busy = FIRST | LAST;
     return (void*)arena;
+}
+
+void* kernel_free(void* arena)
+{
+    if (!VirtualFree(arena, 0, MEM_RELEASE))
+        throw std::string("Error during freeing memory!");
 }

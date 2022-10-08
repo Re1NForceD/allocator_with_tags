@@ -16,10 +16,22 @@ void block::split(size_t newSize)
 
 void block::merge()
 {
-    block* nextBlock = this->next();
-    if(!(nextBlock->busy & BUSY) && !(this->busy & BUSY))
+    block* targetBlock = static_cast<block*>(this);
+
+    block* prevBlock = targetBlock->prev();
+    if(prevBlock && !prevBlock->isBusy() && !targetBlock->isBusy())
     {
-        this->sizeCurrent += nextBlock->sizeCurrent + sizeof(struct block);
-        this->busy |= nextBlock->busy;
+        prevBlock->sizeCurrent += targetBlock->sizeCurrent + sizeof(struct block);
+        prevBlock->busy |= targetBlock->busy;
+        targetBlock = prevBlock;
     }
+
+    block* nextBlock = targetBlock->next();
+    if(nextBlock && !nextBlock->isBusy() && !targetBlock->isBusy())
+    {
+        targetBlock->sizeCurrent += nextBlock->sizeCurrent + sizeof(struct block);
+        targetBlock->busy |= nextBlock->busy;
+    }
+
+    if (block* nextNext = targetBlock->next()) nextNext->sizePrevious = targetBlock->sizeCurrent;
 }

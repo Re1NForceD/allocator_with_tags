@@ -1,12 +1,12 @@
 #include "allocator.hpp"
 #include <kernel.hpp>
 #include <block.hpp>
+#include <alignDefs.hpp>
+
 #include <iostream>
 #include <vector>
 #include <string>
 
-#define ALIGN alignof(std::max_align_t)
-#define ROUND_BYTES(s) (((s) + (ALIGN - 1)) & ~(ALIGN - 1))
 
 std::vector<void*> arenas;
 block* findFit(size_t size);
@@ -17,7 +17,6 @@ void* mem_alloc(size_t size)
     auto alignSize = ROUND_BYTES(size);
     std::cout << "Align for " << ALIGN << "... Align size is " << alignSize << " bytes" << std::endl;
     if (alignSize < size) throw std::string("Size overflow while aligns!");
-    alignSize += sizeof(struct block);
 
     block* header = (block*)findFit(alignSize);
     header->split(alignSize);
@@ -39,7 +38,7 @@ block* findFit(size_t size)
         }
     }
 
-    arenas.push_back(kernel_alloc(ROUND_BYTES(size)));
+    arenas.push_back(kernel_alloc(ROUND_BYTES(size) + sizeof(struct block)));
     return (block*)(arenas[arenas.size() - 1]);
 }
 
@@ -66,9 +65,9 @@ void mem_show()
         block* b = (block*)arena;
         while(true) {
             std::cout << "\tBlock " << ++j << ":" << std::endl;
-            std::cout << "\t\tcurr size " << b->sizeCurrent << std::endl;
             std::cout << "\t\tprev size " << b->sizePrevious << std::endl;
-            std::cout << "\t\tflags " << !!(b->busy & LAST) << " " << !!(b->busy & FIRST) << " " << !!(b->busy & BUSY) << std::endl;
+            std::cout << "\t\tcurr size " << b->sizeCurrent << std::endl;
+            std::cout << "\t\tflags: last->" << b->isLast() << " | first->" << b->isFirst() << " | busy->" << b->isBusy() << std::endl;
 
             arenaSize += sizeof(struct block) + b->sizeCurrent;
             if (b->busy & LAST) break;
@@ -78,4 +77,13 @@ void mem_show()
     }
     if (!arenas.size())
         std::cout << "No allocated memory with this allocator" << std::endl;
+}
+
+void freeAllMem() // for testing
+{
+    for (void* arena: arenas)
+    {
+        kernel_free(arena);
+    }
+    arenas.clear();
 }
