@@ -212,3 +212,70 @@ TEST(Allocator, test_free_curr_free)
     // EXPECT_EQ(getBlock(block1)->sizeCurrent, ROUND_BYTES(b1S) + sizeof(struct block) + ROUND_BYTES(b2S) + sizeof(struct block) + block3Size);
     // EXPECT_FALSE(getBlock(block1)->isBusy());
 }
+
+TEST(Allocator, test_realloc_in_place_decrease_size)
+{
+    const auto b1S = 40;
+    const auto b1S_new = 20;
+    auto block1 = mem_alloc(b1S);
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    // auto block3Size = getBlock(block2)->next()->sizeCurrent;
+    auto block2 = mem_realloc(block1, b1S_new);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(getBlock(block1), getBlock(block2));
+    EXPECT_EQ(getBlock(block1)->sizeCurrent, ROUND_BYTES(b1S_new));
+    EXPECT_TRUE(getBlock(block1)->isBusy());
+
+    mem_free(block1);
+}
+
+TEST(Allocator, test_realloc_in_place_increase_size)
+{
+    const auto b1S = 40;
+    const auto b1S_new = 60;
+    auto block1 = mem_alloc(b1S);
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    auto block2 = mem_realloc(block1, b1S_new);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(getBlock(block1), getBlock(block2));
+    EXPECT_EQ(getBlock(block1)->sizeCurrent, ROUND_BYTES(b1S_new));
+    EXPECT_TRUE(getBlock(block1)->isBusy());
+
+    mem_free(block1);
+}
+
+TEST(Allocator, test_realloc_new_place_increase_size)
+{
+    const auto b1S = 40;
+    const auto b1S_new = 60;
+    auto block1 = mem_alloc(b1S);
+    auto block2 = mem_alloc(b1S);
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    auto block3 = mem_realloc(block1, b1S_new);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_NE(getBlock(block1), getBlock(block3));
+    EXPECT_FALSE(getBlock(block1)->isBusy());
+    EXPECT_TRUE(getBlock(block3)->isBusy());
+    EXPECT_EQ(getBlock(block3)->sizeCurrent, ROUND_BYTES(b1S_new));
+
+    mem_free(block2);
+    mem_free(block3);
+}

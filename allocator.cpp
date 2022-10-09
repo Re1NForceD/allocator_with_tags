@@ -17,7 +17,7 @@ void* mem_alloc(size_t size)
     std::cout << "Align for " << ALIGN << "... Align size is " << alignSize << " bytes" << std::endl;
     if (alignSize < size) throw std::string("Size overflow while aligns!");
 
-    block* header = (block*)findFit(alignSize);
+    block* header = findFit(alignSize);
     header->split(alignSize);
     header->busy |= BUSY;
     return (void*)((char*)header + sizeof(struct block));
@@ -58,7 +58,33 @@ void mem_free(void* ptr)
 
 void* mem_realloc(void* ptr, size_t size)
 {
-    return ptr;
+    block* b = (block*)((char*)ptr - sizeof(struct block));
+    auto alignSize = ROUND_BYTES(size);
+    if (size <= b->sizeCurrent)
+    {
+        b->split(alignSize);
+        b->next()->merge();
+        return ptr;
+    }
+    else
+    {
+        if (!b->next()->isBusy() && (b->next()->sizeCurrent + b->sizeCurrent >= alignSize))
+        {
+            b->merge();
+            b->split(alignSize);
+            return ptr;
+        }
+        else
+        {
+            block* newBlock = findFit(alignSize);
+            newBlock->split(alignSize);
+            newBlock->busy |= BUSY;
+            newBlock->next()->merge();
+            memcpy(((char*)newBlock + sizeof(struct block)), ptr, b->sizeCurrent);
+            mem_free(ptr);
+            return (void*)((char*)newBlock + sizeof(struct block));
+        }
+    }
 }
 
 void mem_show()

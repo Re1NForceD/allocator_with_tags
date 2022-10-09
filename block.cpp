@@ -11,7 +11,7 @@ void block::split(size_t newSize)
     newNextBlock->busy = this->busy & ~(BUSY | FIRST);
 
     this->sizeCurrent = newSize;
-    this->busy &= ~(BUSY | LAST);
+    this->busy &= ~LAST;
 }
 
 void block::merge()
@@ -19,7 +19,7 @@ void block::merge()
     block* targetBlock = static_cast<block*>(this);
 
     block* prevBlock = targetBlock->prev();
-    if(prevBlock && !prevBlock->isBusy() && !targetBlock->isBusy())
+    if(prevBlock && !prevBlock->isBusy()/* && !targetBlock->isBusy()*/)
     {
         prevBlock->sizeCurrent += targetBlock->sizeCurrent + sizeof(struct block);
         prevBlock->busy |= targetBlock->busy;
@@ -27,7 +27,7 @@ void block::merge()
     }
 
     block* nextBlock = targetBlock->next();
-    if(nextBlock && !nextBlock->isBusy() && !targetBlock->isBusy())
+    if(nextBlock && !nextBlock->isBusy()/* && !targetBlock->isBusy()*/)
     {
         targetBlock->sizeCurrent += nextBlock->sizeCurrent + sizeof(struct block);
         targetBlock->busy |= nextBlock->busy;
