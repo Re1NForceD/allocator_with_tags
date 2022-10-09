@@ -33,6 +33,7 @@ inline block* getBlock(const void* mem)
 
 TEST(Allocator, MAX_SIZE_overflow_test)
 {
+    // GTEST_SKIP();
     auto allocBlock = mem_alloc(SIZE_MAX);
     EXPECT_THAT(getBlock(allocBlock)->sizeCurrent, INRANGE(SIZE_MAX));
     mem_show();
@@ -42,6 +43,7 @@ TEST(Allocator, MAX_SIZE_overflow_test)
 
 TEST(Allocator, test_first_alloc_free)
 {
+    // GTEST_SKIP();
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -71,6 +73,7 @@ TEST(Allocator, test_first_alloc_free)
 
 TEST(Allocator, test_last_alloc_free)
 {
+    // GTEST_SKIP();
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -101,6 +104,7 @@ TEST(Allocator, test_last_alloc_free)
 
 TEST(Allocator, test_busy_curr_busy)
 {
+    // GTEST_SKIP();
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -135,6 +139,7 @@ TEST(Allocator, test_busy_curr_busy)
 
 TEST(Allocator, test_free_curr_busy)
 {
+    // GTEST_SKIP();
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -165,6 +170,7 @@ TEST(Allocator, test_free_curr_busy)
 
 TEST(Allocator, test_busy_curr_free)
 {
+    // GTEST_SKIP();
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -193,6 +199,7 @@ TEST(Allocator, test_busy_curr_free)
 
 TEST(Allocator, test_free_curr_free)
 {
+    // GTEST_SKIP();
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -215,6 +222,7 @@ TEST(Allocator, test_free_curr_free)
 
 TEST(Allocator, test_realloc_in_place_decrease_size)
 {
+    // GTEST_SKIP();
     const auto b1S = 40;
     const auto b1S_new = 20;
     auto block1 = mem_alloc(b1S);
@@ -233,10 +241,12 @@ TEST(Allocator, test_realloc_in_place_decrease_size)
     EXPECT_TRUE(getBlock(block1)->isBusy());
 
     mem_free(block1);
+    mem_show();
 }
 
 TEST(Allocator, test_realloc_in_place_increase_size)
 {
+    // GTEST_SKIP();
     const auto b1S = 40;
     const auto b1S_new = 60;
     auto block1 = mem_alloc(b1S);
@@ -254,10 +264,12 @@ TEST(Allocator, test_realloc_in_place_increase_size)
     EXPECT_TRUE(getBlock(block1)->isBusy());
 
     mem_free(block1);
+    mem_show();
 }
 
 TEST(Allocator, test_realloc_new_place_increase_size)
 {
+    // GTEST_SKIP();
     const auto b1S = 40;
     const auto b1S_new = 60;
     auto block1 = mem_alloc(b1S);
@@ -278,4 +290,5 @@ TEST(Allocator, test_realloc_new_place_increase_size)
 
     mem_free(block2);
     mem_free(block3);
+    mem_show();
 }

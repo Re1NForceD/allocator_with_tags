@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 
-block* kernel_alloc(size_t bytes)
+block* kernel_alloc(size_t bytes, bool default)
 {
     static size_t pageSize = -1; // TODO add allocated pages counter and use PAGE_LIMIT macros
     if (pageSize == -1)
@@ -26,7 +26,7 @@ block* kernel_alloc(size_t bytes)
     if (pageSize)
     {
         pages = bytes / pageSize + (bytes % pageSize ? 1 : 0);
-        if (pages < DEFAULT_ARENA)
+        if (pages < DEFAULT_ARENA && default)
             pages = DEFAULT_ARENA;
     }
 

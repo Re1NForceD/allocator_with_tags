@@ -7,7 +7,50 @@
 #include <list>
 #include <string>
 
-std::list<block*> arenas;
+struct ArenaList
+{
+    block* list;
+    ArenaList() : list{ kernel_alloc(1, false) }
+    {
+        list->sizePrevious = 0;
+    };
+    ~ArenaList() {
+        kernel_free(list);
+    };
+    bool addArena(block* ptr)
+    {
+        if (list->sizePrevious * sizeof(block*) > list->sizeCurrent - sizeof(block*)) return false;
+        block** b = getListPtr() + getCount();
+        *b = ptr;
+        list->sizePrevious++;
+        return true;
+    };
+    bool removeArena(block* ptr)
+    {
+        if (!getCount()) return false;
+        for (auto i{ 0 }; i < getCount(); ++i)
+        {
+            block* b = *getListPtr() + i;
+            if (b == ptr)
+            {
+                if (i != getCount() - 1) memcpy(ptr, ptr + 1, (getCount() - i - 1) * sizeof(block*));
+                list->sizePrevious--;
+                return true;
+            }
+        }
+         return false;
+    };
+    inline block** getListPtr()
+    {
+        return (block**)(list + 1);
+    };
+    inline size_t getCount()
+    {
+        return list->sizePrevious;
+    };
+};
+
+static ArenaList arenas;
 block* findFit(size_t size);
 
 void* mem_alloc(size_t size)
@@ -20,14 +63,14 @@ void* mem_alloc(size_t size)
     block* header = findFit(alignSize);
     header->split(alignSize);
     header->busy |= BUSY;
-    return (void*)((char*)header + sizeof(struct block));
+    return (void*)(header + 1);
 }
 
 block* findFit(size_t size)
 {
-    for (block* arena: arenas)
+    for (auto i{ 0 }; i < arenas.getCount(); ++i)
     {
-        block* b = arena;
+        block* b = *arenas.getListPtr() + i;
         while(true) {
             if (b->sizeCurrent > size)
                 return b;
@@ -37,8 +80,8 @@ block* findFit(size_t size)
         }
     }
 
-    arenas.push_back(kernel_alloc(ROUND_BYTES(size) + sizeof(struct block)));
-    return arenas.back();
+    arenas.addArena(kernel_alloc(ROUND_BYTES(size) + sizeof(struct block)));
+    return *arenas.getListPtr() + (arenas.getCount() - 1);
 }
 
 void mem_free(void* ptr)
@@ -49,10 +92,8 @@ void mem_free(void* ptr)
 
     if ((!header->prev() && !header->isBusy() && !header->next()) || (header->prev() && !header->prev()->isBusy() && !header->prev()->next()))
     {
-        auto arena = std::find(arenas.begin(), arenas.end(), header->prev() ? header->prev() : header);
-        kernel_free(*arena);
-        if (arena != arenas.end())
-            arenas.erase(arena);
+        arenas.removeArena(header->prev() ? header->prev() : header);
+        kernel_free(header->prev() ? header->prev() : header);
     }
 }
 
@@ -80,24 +121,23 @@ void* mem_realloc(void* ptr, size_t size)
             newBlock->split(alignSize);
             newBlock->busy |= BUSY;
             newBlock->next()->merge();
-            memcpy(((char*)newBlock + sizeof(struct block)), ptr, b->sizeCurrent);
+            memcpy(newBlock + 1, ptr, b->sizeCurrent);
             mem_free(ptr);
-            return (void*)((char*)newBlock + sizeof(struct block));
+            return (void*)(newBlock + 1);
         }
     }
 }
 
 void mem_show()
 {
-    int i = 0;
-    for (block* arena: arenas)
+    for (auto i{ 0 }; i < arenas.getCount(); ++i)
     {
         size_t arenaSize = 0;
         std::cout << "Arena " << ++i << ":" << std::endl;
         int j = 0;
-        block* b = arena;
+        block* b = *arenas.getListPtr() + i - 1;
         while(true) {
-            std::cout << "\tBlock " << ++j << ":" << std::endl;
+            std::cout << "\tBlock " << ++j << ": " << b << std::endl;
             std::cout << "\t\tprev size " << b->sizePrevious << std::endl;
             std::cout << "\t\tcurr size " << b->sizeCurrent << std::endl;
             std::cout << "\t\tflags: last->" << b->isLast() << " | first->" << b->isFirst() << " | busy->" << b->isBusy() << std::endl;
@@ -108,15 +148,6 @@ void mem_show()
         }
         std::cout << "\tTotal bytes: " << arenaSize << std::endl;
     }
-    if (!arenas.size())
+    if (!arenas.getCount())
         std::cout << "No allocated memory with this allocator" << std::endl;
-}
-
-void freeAllMem() // for testing
-{
-    for (block* arena: arenas)
-    {
-        kernel_free(arena);
-    }
-    arenas.clear();
 }
