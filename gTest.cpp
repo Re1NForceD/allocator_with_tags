@@ -9,6 +9,7 @@
 #include <iostream>
 #include <list>
 #include <string>
+#include <tree.hpp>
 
 // EXPECT_EQ(sizeof(coder_t), sizeof(Coder));
 // EXPECT_STREQ(buf_hello, coder.buf());
@@ -23,6 +24,7 @@ using ::testing::Lt;
 
 #define SIZE_MAX 0xFFFF
 #define INRANGE(s) AllOf(Ge(s), Lt(s + alignof(std::max_align_t)))
+// #define NEED_CORRECT
 
 #include <alignDefs.hpp>
 
@@ -33,7 +35,6 @@ inline block* getBlock(const void* mem)
 
 TEST(Allocator, MAX_SIZE_overflow_test)
 {
-    // GTEST_SKIP();
     auto allocBlock = mem_alloc(SIZE_MAX);
     EXPECT_THAT(getBlock(allocBlock)->sizeCurrent, INRANGE(SIZE_MAX));
     mem_show();
@@ -43,16 +44,22 @@ TEST(Allocator, MAX_SIZE_overflow_test)
 
 TEST(Allocator, test_first_alloc_free)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
     auto block1 = mem_alloc(b1S);
     auto block2 = mem_alloc(b2S);
     auto block3 = mem_alloc(b3S);
+
+    std::cout << "Init state:" << std::endl;
     mem_show();
 
     mem_free(block1);
+
+    std::cout << "End state:" << std::endl;
     mem_show();
 
     EXPECT_EQ(getBlock(block1)->sizeCurrent, ROUND_BYTES(b1S));
@@ -73,7 +80,9 @@ TEST(Allocator, test_first_alloc_free)
 
 TEST(Allocator, test_last_alloc_free)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -104,7 +113,9 @@ TEST(Allocator, test_last_alloc_free)
 
 TEST(Allocator, test_busy_curr_busy)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -139,7 +150,9 @@ TEST(Allocator, test_busy_curr_busy)
 
 TEST(Allocator, test_free_curr_busy)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -170,7 +183,9 @@ TEST(Allocator, test_free_curr_busy)
 
 TEST(Allocator, test_busy_curr_free)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -199,7 +214,9 @@ TEST(Allocator, test_busy_curr_free)
 
 TEST(Allocator, test_free_curr_free)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 20;
     const auto b2S = 40;
     const auto b3S = 60;
@@ -222,15 +239,16 @@ TEST(Allocator, test_free_curr_free)
 
 TEST(Allocator, test_realloc_in_place_decrease_size)
 {
-    // GTEST_SKIP();
-    const auto b1S = 40;
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    const auto b1S = 80;
     const auto b1S_new = 20;
     auto block1 = mem_alloc(b1S);
 
     std::cout << "Init state:" << std::endl;
     mem_show();
 
-    // auto block3Size = getBlock(block2)->next()->sizeCurrent;
     auto block2 = mem_realloc(block1, b1S_new);
 
     std::cout << "End state:" << std::endl;
@@ -246,7 +264,9 @@ TEST(Allocator, test_realloc_in_place_decrease_size)
 
 TEST(Allocator, test_realloc_in_place_increase_size)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 40;
     const auto b1S_new = 60;
     auto block1 = mem_alloc(b1S);
@@ -269,7 +289,9 @@ TEST(Allocator, test_realloc_in_place_increase_size)
 
 TEST(Allocator, test_realloc_new_place_increase_size)
 {
-    // GTEST_SKIP();
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     const auto b1S = 40;
     const auto b1S_new = 60;
     auto block1 = mem_alloc(b1S);
@@ -290,5 +312,48 @@ TEST(Allocator, test_realloc_new_place_increase_size)
 
     mem_free(block2);
     mem_free(block3);
+    mem_show();
+}
+
+TEST(Allocator, test_alv_tree)
+{
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    const auto b1S = 40;
+    const auto b2S = 20;
+    auto block1 = mem_alloc(b1S);
+    auto block2 = mem_alloc(b1S);
+    auto block3 = mem_alloc(b1S);
+    auto block4 = mem_alloc(b1S);
+    auto block5 = mem_alloc(b2S);
+    auto block6 = mem_alloc(b2S);
+    auto block7 = mem_alloc(b2S);
+    auto block8 = mem_alloc(b2S);
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    mem_free(block1);
+    mem_free(block3);
+    mem_free(block5);
+    mem_free(block7);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(treeRoot->getKey(), ROUND_BYTES(b1S));
+    EXPECT_NE(treeRoot->nextSameKey, nullptr);
+    EXPECT_EQ(treeRoot->nextSameKey->getKey(), ROUND_BYTES(b1S));
+    EXPECT_EQ(treeRoot->left->getKey(), ROUND_BYTES(b2S));
+    EXPECT_NE(treeRoot->left->nextSameKey, nullptr);
+    EXPECT_EQ(treeRoot->left->nextSameKey->getKey(), ROUND_BYTES(b2S));
+    EXPECT_EQ(treeRoot->right->getKey(), ((block*)block8 - 1)->next()->sizeCurrent);
+    EXPECT_EQ(treeRoot->right->nextSameKey, nullptr);
+
+    mem_free(block2);
+    mem_free(block4);
+    mem_free(block6);
+    mem_free(block8);
     mem_show();
 }

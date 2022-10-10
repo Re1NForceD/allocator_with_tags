@@ -28,13 +28,16 @@ target_include_directories(allocator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_library(block "${CMAKE_CURRENT_SOURCE_DIR}/block.cpp")
 target_include_directories(allocator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_library(tree "${CMAKE_CURRENT_SOURCE_DIR}/tree.cpp")
+target_include_directories(allocator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_library(kernel "${CMAKE_CURRENT_SOURCE_DIR}/kernel.cpp")
 target_include_directories(allocator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 enable_testing()
 
 add_executable(OSLab1 "${CMAKE_CURRENT_SOURCE_DIR}/gTest.cpp")
-target_link_libraries(OSLab1 PRIVATE kernel allocator block GTest::gtest_main GTest::gmock)
+target_link_libraries(OSLab1 PRIVATE kernel allocator block tree GTest::gtest_main GTest::gmock)
 target_include_directories(OSLab1 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(GoogleTest)

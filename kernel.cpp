@@ -31,7 +31,7 @@ block* kernel_alloc(size_t bytes, bool default)
     }
 
     std::cout << "Allocating arena... Number of " << (pageSize ? "pages" : "bytes") <<" in arena: " << pages << std::endl;
-    block* arena = (block*)VirtualAlloc(NULL,
+    block* arena = (block*)VirtualAlloc(nullptr,
                                         pages * (pageSize ? pageSize : 1),
                                         MEM_RESERVE | MEM_COMMIT,
                                         PAGE_READWRITE);

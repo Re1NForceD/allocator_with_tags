@@ -10,8 +10,8 @@ struct alignas(std::max_align_t) block
     size_t sizeCurrent;
     size_t sizePrevious;
     char busy;
-    void merge();
-    void split(size_t);
+    block* merge();
+    block* split(size_t);
     inline block* next() { return isLast() ? nullptr : (block*)((char*)this + sizeCurrent + sizeof(struct block)); };
     inline block* prev() { return isFirst() ? nullptr : (block*)((char*)this - sizePrevious - sizeof(struct block)); };
     inline bool isBusy() { return busy & BUSY; };
