@@ -90,12 +90,9 @@ Node* bestFit(Node* root, size_t key)
 
 block* findFit(size_t size)
 {
-    // std::cout << "find " << size << std::endl;
     if (Node* node = bestFit(treeRoot, size))
     {
-        // std::cout << "best fit " << node->getBlock() << " " << node->getKey() << std::endl;
         treeRoot = deleteNode(treeRoot, node);
-        // mem_show();
         return node->getBlock();
     }
     else
@@ -109,24 +106,14 @@ void mem_free(void* ptr)
 {
     block* header = (block*)ptr - 1;
     header->busy &= ~BUSY;
-    // mem_show();
-    // std::cout << "beef mer " << header << std::endl;
     header = header->merge();
-    // Node* nn = newNode(header);
-    // mem_show();
-    // std::cout << "nn " << nn << std::endl;
     treeRoot = insertNode(treeRoot, newNode(header));
-    // std::cout << "affre mer" << std::endl;
-    // mem_show();
 
     if (!header->prev() && !header->isBusy() && !header->next())
     {
         if (arenas.getCount() > 1)
         {
-            // block* target = header->prev() ? header->prev() : header;
-            // std:: cout << "Tree root-0 " << treeRoot << std::endl;
             treeRoot = deleteNode(treeRoot, (Node*)(header + 1));
-            // std:: cout << "Tree root-1 " << treeRoot << std::endl;
             arenas.removeArena(header);
         }
     }
@@ -136,20 +123,13 @@ void* mem_realloc(void* ptr, size_t size)
 {
     auto alignSize = ROUND_BYTES(size);
     block* b = (block*)ptr - 1;
-    // std::cout << "realloc " << b->sizeCurrent << " " << alignSize << std::endl;
-    if (b->sizeCurrent == alignSize || alignSize < sizeof(struct Node))
-    {
-        // std::cout << "no changes realloc" << std::endl;
-        return ptr;
-    }
+    if (b->sizeCurrent == alignSize || alignSize < sizeof(struct Node)) return ptr;
 
     if (alignSize < b->sizeCurrent) // in-place
     {
-        // std::cout << "in-place small" << std::endl;
         block* fromSplit = b->split(alignSize);
         if (fromSplit)
         {
-            // std::cout << "b1 " << b << " " << b->sizeCurrent << " | b2 " << fromSplit << " " << fromSplit->sizeCurrent << std::endl;
             treeRoot = insertNode(treeRoot, newNode(fromSplit));
             b->next()->merge();
         }
@@ -161,7 +141,6 @@ void* mem_realloc(void* ptr, size_t size)
             (!b->prev() || b->prev()->isBusy()) &&
             (b->next()->sizeCurrent + sizeof(struct block) + b->sizeCurrent >= alignSize))
         {
-            // std::cout << "in-place big" << std::endl;
             block* fromSplit = b->merge()->split(alignSize);
             treeRoot = insertNode(treeRoot, newNode(fromSplit));
             return ptr;
@@ -172,16 +151,11 @@ void* mem_realloc(void* ptr, size_t size)
             block* fromSplit = newBlock->split(alignSize);
             newBlock->busy |= BUSY;
 
-            // std::cout << fromSplit << std::endl;
             if (fromSplit)
             {
-                // std::cout << "left space " << fromSplit << " " << fromSplit->sizeCurrent << std::endl;
                 block* merged = fromSplit->merge();
-                // std::cout << "aft merge space " << merged << " " << merged->sizeCurrent << std::endl;
                 treeRoot = insertNode(treeRoot, newNode(merged));
             }
-
-            // std::cout << "in new block " << newBlock << std::endl;
 
             memcpy(newBlock + 1, ptr, b->sizeCurrent);
 

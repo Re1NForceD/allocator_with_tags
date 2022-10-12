@@ -26,14 +26,9 @@ struct alignas(std::max_align_t) Node: public SubNode
     {
         SubNode* subNode = (SubNode*)(b + 1);
         subNode->nextSameKey = nullptr;
-        if (!nextSameKey)
-        {
-            // std::cout << "put f sub node " << subNode << std::endl;
-            nextSameKey = subNode;
-        }
+        if (!nextSameKey) nextSameKey = subNode;
         else
         {
-            // std::cout << "put another sub node" << std::endl;
             SubNode* node = nextSameKey;
             while (node->nextSameKey) node = node->nextSameKey;
             node->nextSameKey = subNode;

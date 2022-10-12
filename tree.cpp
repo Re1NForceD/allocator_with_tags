@@ -22,7 +22,6 @@ Node *newNode(block* b)
 {
     if (!b) return nullptr;
     Node* node = (Node*)(b + 1);
-    // node->key = key;
     node->left = nullptr;
     node->right = nullptr;
     node->height = 1;
@@ -60,33 +59,13 @@ int getBalanceFactor(Node *N)
 
 Node *insertNode(Node *node, Node* b)
 {
-    // cout << "key " << b->getKey() << " " << node << endl;
     if (!node) return b;
     if (!b) return node;
 
-    if (b->getKey() < node->getKey())
-    {
-        // cout << "to left" << endl;
-        Node* nn = insertNode(node->left, b);
-        // if (nn == node->left) return node;
-        node->left = nn;
-        // cout << "set left " << nn << endl;
-    }
-    else if (b->getKey() > node->getKey())
-    {
-        // cout << "to right" << endl;
-        Node* nn = insertNode(node->right, b);
-        // if (nn == node->right) return node;
-        node->right = nn;
-        // cout << "set right " << nn << endl;
-    }
-    else
-    {
-        // cout << "sub node" << endl;
-        return node->putSubNode(b->getBlock());
-    }
+    if (b->getKey() < node->getKey()) node->left = insertNode(node->left, b);
+    else if (b->getKey() > node->getKey()) node->right = insertNode(node->right, b);
+    else return node->putSubNode(b->getBlock());
 
-    // cout << "balancing " << node << endl;
     node->height = 1 + max(height(node->left), height(node->right));
     int balanceFactor = getBalanceFactor(node);
     if (balanceFactor > 1) {
@@ -116,19 +95,15 @@ Node *nodeWithMimumValue(Node *node) {
 
 Node *deleteNode(Node *root, Node *key, bool move)
 {
-    // cout << "del0 " << key << " " << key->getKey() << " " << root << " " << root->getKey() << endl;
     if (!root) return root;
     if (key->getKey() < root->getKey()) root->left = deleteNode(root->left, key);
     else if (key->getKey() > root->getKey()) root->right = deleteNode(root->right, key);
     else
     {
-        // cout << "del00" << endl;
         if (root->nextSameKey && !move)
         {
-            // cout << "del1 " << root->nextSameKey << " " << root->getKey() << endl;
             if (key == root)
             {
-                // cout << "del4" << endl;
                 Node* newNode = (Node*)root->nextSameKey;
                 newNode->left = root->left;
                 newNode->right = root->right;
@@ -137,7 +112,6 @@ Node *deleteNode(Node *root, Node *key, bool move)
             }
             else
             {
-                // cout << "del5" << endl;
                 SubNode* prevNode = nullptr;
                 SubNode* node = (SubNode*)root;
                 while (node)
@@ -155,27 +129,13 @@ Node *deleteNode(Node *root, Node *key, bool move)
         }
         else if (!root->left || !root->right)
         {
-            // cout << "del2 " << root->left << " " << root->right << " " << root->getKey() << endl;
             Node *temp = root->left ? root->left : root->right;
-            if (!temp)
-            {
-                // cout << "del6" << endl;
-                // temp = root;
-                return nullptr;
-            }
-            else
-            {
-                // cout << "del7" << endl;
-                return temp;
-            }
-            // free(temp);
+            if (!temp) return nullptr;
+            else return temp;
         }
         else
         {
-            // cout << "del3 " << root->getKey() << endl;
             Node *temp = nodeWithMimumValue(root->right);
-            // cout << "del8 " << temp << " " << temp->getKey() << endl;
-            // temp->getKey();
             temp->right = deleteNode(root->right, temp, true);
             temp->left = root->left;
 
