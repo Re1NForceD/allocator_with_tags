@@ -96,8 +96,18 @@ Node *nodeWithMimumValue(Node *node) {
 Node *deleteNode(Node *root, Node *key, bool move)
 {
     if (!root) return root;
-    if (key->getKey() < root->getKey()) root->left = deleteNode(root->left, key);
-    else if (key->getKey() > root->getKey()) root->right = deleteNode(root->right, key);
+    if (key->getKey() < root->getKey())
+    {
+        Node* temp = root->left;
+        root->left = deleteNode(root->left, key, move);
+        if (temp == root->left) return root;
+    }
+    else if (key->getKey() > root->getKey())
+    {
+        Node* temp = root->right;
+        root->right = deleteNode(root->right, key, move);
+        if (temp == root->right) return root;
+    }
     else
     {
         if (root->nextSameKey && !move)
@@ -175,6 +185,8 @@ void printTree(Node* node, int i)
 {
     if (node)
     {
+        cout << setw(8) << node << std::endl;
+        for (int j = 0; j < i * 2; ++j, cout << '\t');
         cout << setw(8) << node->getKey();
         if (SubNode* sn = node->nextSameKey)
         {

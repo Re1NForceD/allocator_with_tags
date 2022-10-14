@@ -3,6 +3,7 @@
 #include "block.hpp"
 #include "tree.hpp"
 #include "alignDefs.hpp"
+#include "config.hpp"
 
 #include <iostream>
 #include <list>
@@ -13,18 +14,19 @@ struct ArenaList
     block* list;
     ArenaList() : list{ kernel_alloc(4096, false) }
     {
+        std::cout << "For arenas " << list << " with size: " << list->sizeCurrent << " bytes" << std::endl;
         list->sizePrevious = 0;
     };
     ~ArenaList() {
+        std::cout << "free all remain arenas" << std::endl;
         for (size_t i{ 0 }; i < getCount(); ++i)
-            kernel_free(*getListPtr() + i);
+            kernel_free(getListPtr()[i]);
         kernel_free(list);
     };
     bool addArena(block* ptr)
     {
         if (list->sizePrevious * sizeof(block*) > list->sizeCurrent - sizeof(block*)) return false;
-        block** b = getListPtr() + getCount();
-        *b = ptr;
+        getListPtr()[getCount()] = ptr;
         list->sizePrevious++;
         return true;
     };
@@ -33,10 +35,10 @@ struct ArenaList
         if (!getCount()) return false;
         for (size_t i{ 0 }; i < getCount(); ++i)
         {
-            block* b = *getListPtr() + i;
+            block* b = getListPtr()[i];
             if (b == ptr)
             {
-                if (i != getCount() - 1) memcpy(ptr, ptr + 1, (getCount() - i - 1) * sizeof(block*));
+                if (i != getCount() - 1) memcpy(getListPtr() + i, getListPtr() + i + 1, (getCount() - i - 1) * sizeof(block*));
                 list->sizePrevious--;
                 kernel_free(ptr);
                 return true;
@@ -67,8 +69,11 @@ void* mem_alloc(size_t size)
 
     block* header = findFit(alignSize);
 
-    Node* node = newNode(header->split(alignSize));
-    treeRoot = insertNode(treeRoot, node);
+    if (alignSize < pageSize * DEFAULT_ARENA)
+    {
+        Node* node = newNode(header->split(alignSize));
+        treeRoot = insertNode(treeRoot, node);
+    }
 
     header->busy |= BUSY;
     return (void*)(header + 1);
@@ -97,8 +102,8 @@ block* findFit(size_t size)
     }
     else
     {
-        arenas.addArena(kernel_alloc(ROUND_BYTES(size) + sizeof(struct block) + sizeof(struct Node)));
-        return *arenas.getListPtr() + (arenas.getCount() - 1);
+        if (!arenas.addArena(kernel_alloc(size + sizeof(struct block) + sizeof(struct Node)))) throw std::string("out of space for arenas");
+        return arenas.getListPtr()[arenas.getCount() - 1];
     }
 }
 
@@ -107,15 +112,14 @@ void mem_free(void* ptr)
     block* header = (block*)ptr - 1;
     header->busy &= ~BUSY;
     header = header->merge();
-    treeRoot = insertNode(treeRoot, newNode(header));
 
-    if (!header->prev() && !header->isBusy() && !header->next())
+    if (!header->prev() && !header->next() && arenas.getCount() > 1)
     {
-        if (arenas.getCount() > 1)
-        {
-            treeRoot = deleteNode(treeRoot, (Node*)(header + 1));
-            arenas.removeArena(header);
-        }
+        arenas.removeArena(header);
+    }
+    else
+    {
+        treeRoot = insertNode(treeRoot, newNode(header));
     }
 }
 
@@ -125,44 +129,76 @@ void* mem_realloc(void* ptr, size_t size)
     block* b = (block*)ptr - 1;
     if (b->sizeCurrent == alignSize || alignSize < sizeof(struct Node)) return ptr;
 
-    if (alignSize < b->sizeCurrent) // in-place
+    if (b->sizeCurrent >= pageSize * DEFAULT_ARENA)
     {
-        block* fromSplit = b->split(alignSize);
-        if (fromSplit)
+        if (b->sizeCurrent >> 3 >= (alignSize > b->sizeCurrent ? alignSize - b->sizeCurrent : b->sizeCurrent - alignSize)) return ptr;
+        else
         {
-            treeRoot = insertNode(treeRoot, newNode(fromSplit));
-            b->next()->merge();
+            block* newBlock = findFit(alignSize);
+            newBlock->busy |= BUSY;
+
+            if (alignSize < pageSize * DEFAULT_ARENA)
+            {
+                block* fromSplit = newBlock->split(alignSize);
+
+                if (fromSplit)
+                {
+                    block* merged = fromSplit->merge();
+                    treeRoot = insertNode(treeRoot, newNode(merged));
+                }
+            }
+
+            memcpy(newBlock + 1, ptr, (alignSize > b->sizeCurrent ? b->sizeCurrent : alignSize));
+
+            b->busy &= ~BUSY;
+            arenas.removeArena(b);
+
+            return (void*)(newBlock + 1);
         }
-        return ptr;
     }
     else
     {
-        if (!b->next()->isBusy() &&
-            (!b->prev() || b->prev()->isBusy()) &&
-            (b->next()->sizeCurrent + sizeof(struct block) + b->sizeCurrent >= alignSize))
+        if (alignSize < b->sizeCurrent) // in-place
         {
-            block* fromSplit = b->merge()->split(alignSize);
-            treeRoot = insertNode(treeRoot, newNode(fromSplit));
+            block* fromSplit = b->split(alignSize);
+            if (fromSplit)
+            {
+                treeRoot = insertNode(treeRoot, newNode(fromSplit));
+                b->next()->merge();
+            }
             return ptr;
         }
         else
         {
-            block* newBlock = findFit(alignSize);
-            block* fromSplit = newBlock->split(alignSize);
-            newBlock->busy |= BUSY;
-
-            if (fromSplit)
+            if (!b->next()->isBusy() &&
+                (!b->prev() || b->prev()->isBusy()) &&
+                (b->next()->sizeCurrent + sizeof(struct block) + b->sizeCurrent >= alignSize)) // increase size in-place
             {
-                block* merged = fromSplit->merge();
-                treeRoot = insertNode(treeRoot, newNode(merged));
+                if (block* fromSplit = b->merge()->split(alignSize))
+                {
+                    treeRoot = insertNode(treeRoot, newNode(fromSplit));
+                }
+                return ptr;
             }
+            else // increase size new place
+            {
+                block* newBlock = findFit(alignSize);
+                block* fromSplit = newBlock->split(alignSize);
+                newBlock->busy |= BUSY;
 
-            memcpy(newBlock + 1, ptr, b->sizeCurrent);
+                if (fromSplit)
+                {
+                    block* merged = fromSplit->merge();
+                    treeRoot = insertNode(treeRoot, newNode(merged));
+                }
 
-            b->busy &= ~BUSY;
-            treeRoot = insertNode(treeRoot, newNode(b->merge()));
+                memcpy(newBlock + 1, ptr, b->sizeCurrent);
 
-            return (void*)(newBlock + 1);
+                b->busy &= ~BUSY;
+                treeRoot = insertNode(treeRoot, newNode(b->merge()));
+
+                return (void*)(newBlock + 1);
+            }
         }
     }
 }
@@ -180,9 +216,9 @@ void mem_show()
     for (size_t i{ 0 }; i < arenas.getCount(); ++i)
     {
         size_t arenaSize = 0;
-        std::cout << "Arena " << ++i << ":" << std::endl;
+        std::cout << "Arena " << i + 1 << "/" << arenas.getCount() << ": " << arenas.getListPtr()[i] << std::endl;
         int j = 0;
-        block* b = *arenas.getListPtr() + i - 1;
+        block* b = arenas.getListPtr()[i];
         while(true) {
             std::cout << "\tBlock " << ++j << ": " << b << std::endl;
             std::cout << "\t\tprev size " << b->sizePrevious << std::endl;

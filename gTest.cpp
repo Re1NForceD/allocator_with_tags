@@ -11,13 +11,6 @@
 #include <string>
 #include <tree.hpp>
 
-// EXPECT_EQ(sizeof(coder_t), sizeof(Coder));
-// EXPECT_STREQ(buf_hello, coder.buf());
-// EXPECT_NE(buf_company, coder.buf());
-// EXPECT_THROW(coder.set(0, 1), std::logic_error);
-// EXPECT_STRNE(buf_hello, coder.buf());
-// ASSERT_EQ(buf[i], *(coder.buf()+i)) << "i is: " << i;
-
 using ::testing::AllOf;
 using ::testing::Ge;
 using ::testing::Lt;
@@ -35,6 +28,9 @@ inline block* getBlock(const void* mem)
 
 TEST(Allocator, MAX_SIZE_overflow_test)
 {
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
     auto allocBlock = mem_alloc(SIZE_MAX);
     EXPECT_THAT(getBlock(allocBlock)->sizeCurrent, INRANGE(SIZE_MAX));
     mem_show();
@@ -75,7 +71,6 @@ TEST(Allocator, test_first_alloc_free)
 
     mem_free(block2);
     mem_free(block3);
-    mem_show();
 }
 
 TEST(Allocator, test_last_alloc_free)
@@ -108,7 +103,6 @@ TEST(Allocator, test_last_alloc_free)
 
     mem_free(block1);
     mem_free(block2);
-    mem_show();
 }
 
 TEST(Allocator, test_busy_curr_busy)
@@ -144,7 +138,6 @@ TEST(Allocator, test_busy_curr_busy)
 
     mem_free(block1);
     mem_free(block3);
-    mem_show();
 }
 
 TEST(Allocator, test_free_curr_busy)
@@ -177,7 +170,6 @@ TEST(Allocator, test_free_curr_busy)
     EXPECT_TRUE(getBlock(block3)->isBusy());
 
     mem_free(block3);
-    mem_show();
 }
 
 TEST(Allocator, test_busy_curr_free)
@@ -208,7 +200,6 @@ TEST(Allocator, test_busy_curr_free)
     EXPECT_FALSE(getBlock(block2)->isBusy());
 
     mem_free(block1);
-    mem_show();
 }
 
 TEST(Allocator, test_free_curr_free)
@@ -258,7 +249,6 @@ TEST(Allocator, test_realloc_in_place_decrease_size)
     EXPECT_TRUE(getBlock(block1)->isBusy());
 
     mem_free(block1);
-    mem_show();
 }
 
 TEST(Allocator, test_realloc_in_place_increase_size)
@@ -283,7 +273,6 @@ TEST(Allocator, test_realloc_in_place_increase_size)
     EXPECT_TRUE(getBlock(block1)->isBusy());
 
     mem_free(block1);
-    mem_show();
 }
 
 TEST(Allocator, test_realloc_new_place_increase_size)
@@ -311,7 +300,6 @@ TEST(Allocator, test_realloc_new_place_increase_size)
 
     mem_free(block2);
     mem_free(block3);
-    mem_show();
 }
 
 TEST(Allocator, test_realloc_mix)
@@ -321,7 +309,8 @@ TEST(Allocator, test_realloc_mix)
 #endif
     const auto b1S = ROUND_BYTES(50);
     const auto b1S_b = ROUND_BYTES(60);
-    const auto b1S_s = ROUND_BYTES(40);
+    const auto b1S_s1 = ROUND_BYTES(40);
+    const auto b1S_s2 = ROUND_BYTES(24);
     auto block1 = mem_alloc(b1S);
     auto block2 = mem_alloc(b1S);
     auto block3 = mem_alloc(b1S);
@@ -330,37 +319,34 @@ TEST(Allocator, test_realloc_mix)
     std::cout << "Init state:" << std::endl;
     mem_show();
 
+    auto block6 = mem_realloc(block2, b1S_b);
     auto block5 = mem_realloc(block1, b1S_b);
-    auto block6 = mem_realloc(block2, b1S_s);
-    auto block7 = mem_realloc(block3, b1S_b);
-    auto block8 = mem_realloc(block4, b1S_s);
+    auto block7 = mem_realloc(block3, b1S_s1);
+    auto block8 = mem_realloc(block4, b1S_s2);
 
     std::cout << "End state:" << std::endl;
     mem_show();
 
-    // std::cout << "Block1: " << getBlock(block1) << " Block5: " << getBlock(block5) << std::endl;
-    EXPECT_NE(getBlock(block1), getBlock(block5));
-    EXPECT_EQ(getBlock(block1)->sizeCurrent, b1S);
-    EXPECT_FALSE(getBlock(block1)->isBusy());
+    EXPECT_EQ(getBlock(block1), getBlock(block5));
     EXPECT_EQ(getBlock(block5)->sizeCurrent, b1S_b);
     EXPECT_TRUE(getBlock(block5)->isBusy());
+    EXPECT_EQ(getBlock(block5)->prev(), nullptr);
+    EXPECT_EQ(getBlock(block5)->sizePrevious, 0);
 
-    // std::cout << "Block2: " << getBlock(block2) << " Block6: " << getBlock(block6) << std::endl;
-    EXPECT_EQ(getBlock(block2), getBlock(block6));
-    EXPECT_EQ(getBlock(block2)->sizeCurrent, b1S - b1S_s >= sizeof(struct block) + sizeof(struct Node) ? b1S_s : b1S);
-    EXPECT_TRUE(getBlock(block2)->isBusy());
+    EXPECT_NE(getBlock(block2), getBlock(block6));
+    EXPECT_EQ(getBlock(block6)->sizeCurrent, b1S_b);
+    EXPECT_TRUE(getBlock(block6)->isBusy());
+    EXPECT_EQ(getBlock(block6)->prev(), getBlock(block8)->next());
+    EXPECT_EQ(getBlock(block6)->sizePrevious, b1S - b1S_s2 - sizeof(struct block));
 
-    // std::cout << "Block3: " << getBlock(block3) << " Block7: " << getBlock(block7) << std::endl;
-    EXPECT_NE(getBlock(block3), getBlock(block7));
-    EXPECT_EQ(getBlock(block3)->sizeCurrent, b1S);
-    EXPECT_FALSE(getBlock(block3)->isBusy());
-    EXPECT_EQ(getBlock(block7)->sizeCurrent, b1S_b);
+    EXPECT_EQ(getBlock(block3), getBlock(block7));
+    EXPECT_EQ(getBlock(block7)->sizeCurrent, b1S - b1S_s1 >= sizeof(struct block) + sizeof(struct Node) ? b1S_s1 : b1S);
     EXPECT_TRUE(getBlock(block7)->isBusy());
+    EXPECT_EQ(getBlock(block7)->prev(), getBlock(block5)->next());
 
-    // std::cout << "Block4: " << getBlock(block4) << " Block8: " << getBlock(block8) << std::endl;
     EXPECT_EQ(getBlock(block4), getBlock(block8));
-    EXPECT_EQ(getBlock(block4)->sizeCurrent, b1S - b1S_s >= sizeof(struct block) + sizeof(struct Node) ? b1S_s : b1S);
-    EXPECT_TRUE(getBlock(block4)->isBusy());
+    EXPECT_EQ(getBlock(block8)->sizeCurrent, b1S - b1S_s2 >= sizeof(struct block) + sizeof(struct Node) ? b1S_s2 : b1S);
+    EXPECT_TRUE(getBlock(block8)->isBusy());
 
     mem_free(block5);
     mem_free(block6);
@@ -478,10 +464,11 @@ TEST(Allocator, test_auto_tester_check_sum)
 
     for (size_t i{ 0 }; i < blockAmount; ++i)
     {
-        std::cout << std::endl << i;
+        std::cout << i;
         EXPECT_TRUE(getCheckSum(allocBlocks[i]) == calcCheckSum(allocBlocks[i]));
 
         auto randV = rand() % 3 + 1;
+
         if (randV % 3 == 0)
         {
             std::cout << " realloc in-place " << allocBlocks[i] << std::endl;
@@ -510,5 +497,86 @@ TEST(Allocator, test_auto_tester_check_sum)
     {
         if (!allocBlocks[i]) continue;
         ASSERT_EQ(getCheckSum(allocBlocks[i]), calcCheckSum(allocBlocks[i])) << i;
+        mem_free(allocBlocks[i] + 1);
     }
+    mem_free(allocBlocks);
+
+    mem_show();
+}
+
+TEST(Allocator, allocate_more_than_default_arena)
+{
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    auto littleBlock = mem_alloc(32);
+    auto allocBlock = mem_alloc(4096 * 20);
+    mem_show();
+
+    EXPECT_EQ(getBlock(allocBlock)->sizeCurrent, ROUND_BYTES(4096 * 21 - sizeof(struct block)));
+
+    mem_free(allocBlock);
+    mem_free(littleBlock);
+}
+
+TEST(Allocator, realloc_big_block_less_than)
+{
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    auto allocBlock = mem_alloc(4096 * 20);
+    auto s1 = getBlock(allocBlock)->sizeCurrent;
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    auto reallocBlock = mem_realloc(allocBlock, 4096 * 19);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(getBlock(reallocBlock)->sizeCurrent, s1);
+
+    mem_free(reallocBlock);
+}
+
+TEST(Allocator, realloc_big_block_more_than)
+{
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    auto allocBlock = mem_alloc(4096 * 24);
+    auto s1 = ROUND_BYTES(4096 * 21 - sizeof(struct block));
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    auto reallocBlock = mem_realloc(allocBlock, 4096 * 20);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(getBlock(reallocBlock)->sizeCurrent, s1);
+
+    mem_free(reallocBlock);
+}
+
+TEST(Allocator, realloc_big_block_to_default_arena)
+{
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    auto allocBlock = mem_alloc(4096 * 20);
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    auto reallocBlock = mem_realloc(allocBlock, 4096 * 10);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(getBlock(reallocBlock)->sizeCurrent, ROUND_BYTES(4096 * 10));
+
+    mem_free(reallocBlock);
 }

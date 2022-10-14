@@ -5,9 +5,9 @@
 #include <iostream>
 #include <string>
 
+size_t pageSize = -1;
 block* kernel_alloc(size_t bytes, bool default)
 {
-    static size_t pageSize = -1; // TODO add allocated pages counter and use PAGE_LIMIT macros
     if (pageSize == -1)
     {
         SYSTEM_INFO sSysInfo;
@@ -37,6 +37,8 @@ block* kernel_alloc(size_t bytes, bool default)
                                         PAGE_READWRITE);
     if (!arena) // maximum possible 1934423032
         throw std::string("Error while allocating memory!");
+    else
+        std::cout << "Allocated arena " << arena << std::endl;
 
     arena->sizeCurrent = pages * (pageSize ? pageSize : 1) - sizeof(struct block);
     arena->sizePrevious = 0;

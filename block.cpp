@@ -10,6 +10,7 @@ block* block::split(size_t newSize)
     newNextBlock->sizeCurrent = this->sizeCurrent - newSize - sizeof(struct block);
     newNextBlock->sizePrevious = newSize;
     newNextBlock->busy = this->busy & ~(BUSY | FIRST);
+    if (block* nextNext = newNextBlock->next()) nextNext->sizePrevious = newNextBlock->sizeCurrent;
 
     this->sizeCurrent = newSize;
     this->busy &= ~LAST;
