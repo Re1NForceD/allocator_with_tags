@@ -42,6 +42,7 @@ block* kernel_alloc(size_t bytes, bool default)
 
     arena->setCurrentSize(pages * (pageSize ? pageSize : 1) - sizeof(struct block));
     arena->setPreviousSize(0);
+    arena->setOffset(sizeof(struct block));
     arena->setBusy(false);
     arena->setFirst(true);
     arena->setLast(true);
@@ -52,4 +53,13 @@ void kernel_free(void* arena)
 {
     if (!VirtualFree(arena, 0, MEM_RELEASE))
         throw std::string("Error during freeing memory!");
+}
+
+void kernel_reset(void* ptr, size_t size)
+{
+    std::cout << "Inform kernel that memory " << ptr << " with size of " << size << " bytes do not used" << std::endl;
+    VirtualAlloc(ptr,
+                size,
+                MEM_RESET,
+                PAGE_READWRITE);
 }

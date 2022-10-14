@@ -9,6 +9,7 @@ block* block::split(size_t newSize)
     block* newNextBlock = (block*)((char*)this + sizeof(struct block) + newSize);
     newNextBlock->setCurrentSize(this->getCurrentSize() - newSize - sizeof(struct block));
     newNextBlock->setPreviousSize(newSize);
+    newNextBlock->setOffset(this->getOffset() + sizeof(struct block) + newSize);
     newNextBlock->copyFlags(this);
     newNextBlock->setBusy(false);
     newNextBlock->setFirst(false);

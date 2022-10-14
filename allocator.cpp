@@ -119,6 +119,14 @@ void mem_free(void* ptr)
     }
     else
     {
+        if (header->getCurrentSize() >= pageSize)
+        {
+            auto leftOffset = pageSize - (header->getOffset() % pageSize);
+            auto rightOffset = header->getOffset() + header->getCurrentSize();
+            rightOffset -= rightOffset % pageSize;
+
+            if (leftOffset < rightOffset) kernel_reset((char*)(header + 1) + leftOffset, rightOffset - (leftOffset + header->getOffset()));
+        }
         treeRoot = insertNode(treeRoot, newNode(header));
     }
 }
@@ -164,8 +172,8 @@ void* mem_realloc(void* ptr, size_t size)
             block* fromSplit = b->split(alignSize);
             if (fromSplit)
             {
+                fromSplit = fromSplit->merge();
                 treeRoot = insertNode(treeRoot, newNode(fromSplit));
-                b->next()->merge();
             }
             return ptr;
         }
@@ -224,7 +232,7 @@ void mem_show()
             std::cout << "\tBlock " << ++j << ": " << b << std::endl;
             std::cout << "\t\tprev size " << b->getPreviousSize() << std::endl;
             std::cout << "\t\tcurr size " << b->getCurrentSize() << std::endl;
-            std::cout << "\t\tflags: last->" << b->isLast() << " | first->" << b->isFirst() << " | busy->" << b->isBusy() << std::endl;
+            std::cout << "\t\tflags: last->" << b->isLast() << " | first->" << b->isFirst() << " | busy->" << b->isBusy() << " | offset: " << b->getOffset() << std::endl;
 
             arenaSize += sizeof(struct block) + b->getCurrentSize();
             if (b->isLast()) break;

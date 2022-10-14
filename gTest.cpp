@@ -580,3 +580,34 @@ TEST(Allocator, realloc_big_block_to_default_arena)
 
     mem_free(reallocBlock);
 }
+
+TEST(Allocator, mem_free_inform_kernel)
+{
+#ifdef NEED_CORRECT
+    GTEST_SKIP();
+#endif
+    size_t* block1 = (size_t*)mem_alloc(4096 * 2);
+    block1[0] = 100;
+    size_t* block2 = (size_t*)mem_alloc(4096 * 2);
+
+    std::cout << "Init state:" << std::endl;
+    mem_show();
+
+    mem_free(block1);
+    block2 = (size_t*)mem_realloc(block2, 4096);
+    size_t* block3 = (size_t*)mem_alloc(4096);
+
+    std::cout << "End state:" << std::endl;
+    mem_show();
+
+    EXPECT_EQ(getBlock(block3)->getCurrentSize(), ROUND_BYTES(4096));
+    EXPECT_EQ(block3, block1);
+    EXPECT_NE(block3[0], 100);
+    EXPECT_TRUE(getBlock(block3)->isBusy());
+
+    EXPECT_EQ(getBlock(block2)->getCurrentSize(), ROUND_BYTES(4096));
+    EXPECT_TRUE(getBlock(block2)->isBusy());
+
+    mem_free(block1);
+    mem_free(block2);
+}
