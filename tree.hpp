@@ -39,8 +39,8 @@ struct alignas(std::max_align_t) Node: public SubNode
 
 extern Node* treeRoot;
 
-int max(int a, int b);
-int height(Node *N);
+size_t max(size_t a, size_t b);
+size_t height(Node *N);
 Node* newNode(block*);
 Node *rightRotate(Node *y);
 Node *leftRotate(Node *x);

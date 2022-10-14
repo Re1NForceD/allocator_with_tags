@@ -7,13 +7,13 @@ using namespace std;
 
 Node* treeRoot = nullptr;
 
-int height(Node *N)
+size_t height(Node *N)
 {
     if (!N) return 0;
     return N->height;
 }
 
-int max(int a, int b)
+size_t max(size_t a, size_t b)
 {
     return (a > b) ? a : b;
 }
