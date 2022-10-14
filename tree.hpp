@@ -13,7 +13,7 @@ struct alignas(std::max_align_t) SubNode
     }
     inline size_t getKey()
     {
-        return getBlock()->sizeCurrent;
+        return getBlock()->getCurrentSize();
     };
 };
 

@@ -75,7 +75,7 @@ void* mem_alloc(size_t size)
         treeRoot = insertNode(treeRoot, node);
     }
 
-    header->busy |= BUSY;
+    header->setBusy(true);
     return (void*)(header + 1);
 }
 
@@ -110,7 +110,7 @@ block* findFit(size_t size)
 void mem_free(void* ptr)
 {
     block* header = (block*)ptr - 1;
-    header->busy &= ~BUSY;
+    header->setBusy(false);
     header = header->merge();
 
     if (!header->prev() && !header->next() && arenas.getCount() > 1)
@@ -127,15 +127,16 @@ void* mem_realloc(void* ptr, size_t size)
 {
     auto alignSize = ROUND_BYTES(size);
     block* b = (block*)ptr - 1;
-    if (b->sizeCurrent == alignSize || alignSize < sizeof(struct Node)) return ptr;
+    size_t currSize = b->getCurrentSize();
+    if (currSize == alignSize || alignSize < sizeof(struct Node)) return ptr;
 
-    if (b->sizeCurrent >= pageSize * DEFAULT_ARENA)
+    if (currSize >= pageSize * DEFAULT_ARENA)
     {
-        if (b->sizeCurrent >> 3 >= (alignSize > b->sizeCurrent ? alignSize - b->sizeCurrent : b->sizeCurrent - alignSize)) return ptr;
+        if (currSize >> 3 >= (alignSize > currSize ? alignSize - currSize : currSize - alignSize)) return ptr;
         else
         {
             block* newBlock = findFit(alignSize);
-            newBlock->busy |= BUSY;
+            newBlock->setBusy(true);
 
             if (alignSize < pageSize * DEFAULT_ARENA)
             {
@@ -148,9 +149,9 @@ void* mem_realloc(void* ptr, size_t size)
                 }
             }
 
-            memcpy(newBlock + 1, ptr, (alignSize > b->sizeCurrent ? b->sizeCurrent : alignSize));
+            memcpy(newBlock + 1, ptr, (alignSize > currSize ? currSize : alignSize));
 
-            b->busy &= ~BUSY;
+            b->setBusy(false);
             arenas.removeArena(b);
 
             return (void*)(newBlock + 1);
@@ -158,7 +159,7 @@ void* mem_realloc(void* ptr, size_t size)
     }
     else
     {
-        if (alignSize < b->sizeCurrent) // in-place
+        if (alignSize < currSize) // in-place
         {
             block* fromSplit = b->split(alignSize);
             if (fromSplit)
@@ -172,7 +173,7 @@ void* mem_realloc(void* ptr, size_t size)
         {
             if (!b->next()->isBusy() &&
                 (!b->prev() || b->prev()->isBusy()) &&
-                (b->next()->sizeCurrent + sizeof(struct block) + b->sizeCurrent >= alignSize)) // increase size in-place
+                (b->next()->getCurrentSize() + sizeof(struct block) + b->getCurrentSize() >= alignSize)) // increase size in-place
             {
                 if (block* fromSplit = b->merge()->split(alignSize))
                 {
@@ -184,7 +185,7 @@ void* mem_realloc(void* ptr, size_t size)
             {
                 block* newBlock = findFit(alignSize);
                 block* fromSplit = newBlock->split(alignSize);
-                newBlock->busy |= BUSY;
+                newBlock->setBusy(true);
 
                 if (fromSplit)
                 {
@@ -192,9 +193,9 @@ void* mem_realloc(void* ptr, size_t size)
                     treeRoot = insertNode(treeRoot, newNode(merged));
                 }
 
-                memcpy(newBlock + 1, ptr, b->sizeCurrent);
+                memcpy(newBlock + 1, ptr, currSize);
 
-                b->busy &= ~BUSY;
+                b->setBusy(false);
                 treeRoot = insertNode(treeRoot, newNode(b->merge()));
 
                 return (void*)(newBlock + 1);
@@ -221,12 +222,12 @@ void mem_show()
         block* b = arenas.getListPtr()[i];
         while(true) {
             std::cout << "\tBlock " << ++j << ": " << b << std::endl;
-            std::cout << "\t\tprev size " << b->sizePrevious << std::endl;
-            std::cout << "\t\tcurr size " << b->sizeCurrent << std::endl;
+            std::cout << "\t\tprev size " << b->getPreviousSize() << std::endl;
+            std::cout << "\t\tcurr size " << b->getCurrentSize() << std::endl;
             std::cout << "\t\tflags: last->" << b->isLast() << " | first->" << b->isFirst() << " | busy->" << b->isBusy() << std::endl;
 
-            arenaSize += sizeof(struct block) + b->sizeCurrent;
-            if (b->busy & LAST) break;
+            arenaSize += sizeof(struct block) + b->getCurrentSize();
+            if (b->isLast()) break;
             b = b->next();
         }
         std::cout << "\tTotal bytes: " << arenaSize << std::endl;

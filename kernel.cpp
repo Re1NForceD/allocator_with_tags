@@ -40,9 +40,11 @@ block* kernel_alloc(size_t bytes, bool default)
     else
         std::cout << "Allocated arena " << arena << std::endl;
 
-    arena->sizeCurrent = pages * (pageSize ? pageSize : 1) - sizeof(struct block);
-    arena->sizePrevious = 0;
-    arena->busy = FIRST | LAST;
+    arena->setCurrentSize(pages * (pageSize ? pageSize : 1) - sizeof(struct block));
+    arena->setPreviousSize(0);
+    arena->setBusy(false);
+    arena->setFirst(true);
+    arena->setLast(true);
     return arena;
 }
 

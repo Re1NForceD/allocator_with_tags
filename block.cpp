@@ -4,16 +4,18 @@
 
 block* block::split(size_t newSize)
 {
-    if ((this->sizeCurrent - newSize) < (sizeof(struct block) + sizeof(struct Node))) return nullptr;
+    if ((this->getCurrentSize() - newSize) < (sizeof(struct block) + sizeof(struct Node))) return nullptr;
 
     block* newNextBlock = (block*)((char*)this + sizeof(struct block) + newSize);
-    newNextBlock->sizeCurrent = this->sizeCurrent - newSize - sizeof(struct block);
-    newNextBlock->sizePrevious = newSize;
-    newNextBlock->busy = this->busy & ~(BUSY | FIRST);
-    if (block* nextNext = newNextBlock->next()) nextNext->sizePrevious = newNextBlock->sizeCurrent;
+    newNextBlock->setCurrentSize(this->getCurrentSize() - newSize - sizeof(struct block));
+    newNextBlock->setPreviousSize(newSize);
+    newNextBlock->copyFlags(this);
+    newNextBlock->setBusy(false);
+    newNextBlock->setFirst(false);
+    if (block* nextNext = newNextBlock->next()) nextNext->setPreviousSize(newNextBlock->getCurrentSize());
 
-    this->sizeCurrent = newSize;
-    this->busy &= ~LAST;
+    this->setCurrentSize(newSize);
+    this->setLast(false);
     return newNextBlock;
 }
 
@@ -25,8 +27,8 @@ block* block::merge()
     if(prevBlock && !prevBlock->isBusy())
     {
         treeRoot = deleteNode(treeRoot, (Node*)(prevBlock + 1));
-        prevBlock->sizeCurrent += targetBlock->sizeCurrent + sizeof(struct block);
-        prevBlock->busy |= targetBlock->busy;
+        prevBlock->setCurrentSize(prevBlock->getCurrentSize() + targetBlock->getCurrentSize() + sizeof(struct block));
+        prevBlock->mergeFlags(targetBlock);
         targetBlock = prevBlock;
     }
 
@@ -34,10 +36,10 @@ block* block::merge()
     if(nextBlock && !nextBlock->isBusy())
     {
         treeRoot = deleteNode(treeRoot, (Node*)(nextBlock + 1));
-        targetBlock->sizeCurrent += nextBlock->sizeCurrent + sizeof(struct block);
-        targetBlock->busy |= nextBlock->busy;
+        targetBlock->setCurrentSize(targetBlock->getCurrentSize() + nextBlock->getCurrentSize() + sizeof(struct block));
+        targetBlock->mergeFlags(nextBlock);
     }
 
-    if (block* nextNext = targetBlock->next()) nextNext->sizePrevious = targetBlock->sizeCurrent;
+    if (block* nextNext = targetBlock->next()) nextNext->setPreviousSize(targetBlock->getCurrentSize());
     return targetBlock;
 }
