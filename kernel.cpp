@@ -6,7 +6,7 @@
 #include <string>
 
 size_t pageSize = -1;
-block* kernel_alloc(size_t bytes, bool default)
+block* kernel_alloc(size_t bytes, bool defaultPage)
 {
     if (pageSize == -1)
     {
@@ -26,7 +26,7 @@ block* kernel_alloc(size_t bytes, bool default)
     if (pageSize)
     {
         pages = bytes / pageSize + (bytes % pageSize ? 1 : 0);
-        if (pages < DEFAULT_ARENA && default)
+        if (pages < DEFAULT_ARENA && defaultPage)
             pages = DEFAULT_ARENA;
     }
 
