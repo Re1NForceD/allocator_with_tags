@@ -64,6 +64,7 @@ void* mem_alloc(size_t size)
 {
     std::cout << "Request for " << size << " bytes" << std::endl;
     auto alignSize = ROUND_BYTES(size);
+    if (alignSize < sizeof(struct Node)) alignSize = sizeof(struct Node);
     std::cout << "Align for " << ALIGN << "... Align size is " << alignSize << " bytes" << std::endl;
     if (alignSize < size) throw std::string("Size overflow while aligns!");
 
@@ -102,7 +103,7 @@ block* findFit(size_t size)
     }
     else
     {
-        if (!arenas.addArena(kernel_alloc(size + sizeof(struct block) + sizeof(struct Node)))) throw std::string("out of space for arenas");
+        if (!arenas.addArena(kernel_alloc(size + sizeof(struct block)))) throw std::string("out of space for arenas");
         return arenas.getListPtr()[arenas.getCount() - 1];
     }
 }
@@ -122,10 +123,9 @@ void mem_free(void* ptr)
         if (header->getCurrentSize() >= pageSize)
         {
             auto leftOffset = pageSize - (header->getOffset() % pageSize);
-            auto rightOffset = header->getOffset() + header->getCurrentSize();
-            rightOffset -= rightOffset % pageSize;
+            auto rightOffset = header->getCurrentSize() - (header->getCurrentSize() % pageSize);
 
-            if (leftOffset < rightOffset) kernel_reset((char*)(header + 1) + leftOffset, rightOffset - (leftOffset + header->getOffset()));
+            if (leftOffset < rightOffset) kernel_reset((char*)(header + 1) + leftOffset, rightOffset - leftOffset);
         }
         treeRoot = insertNode(treeRoot, newNode(header));
     }
@@ -133,10 +133,10 @@ void mem_free(void* ptr)
 
 void* mem_realloc(void* ptr, size_t size)
 {
-    auto alignSize = ROUND_BYTES(size);
+    auto alignSize = ROUND_BYTES(size) < sizeof(struct Node) ? sizeof(struct Node) : ROUND_BYTES(size);
     block* b = (block*)ptr - 1;
     size_t currSize = b->getCurrentSize();
-    if (currSize == alignSize || alignSize < sizeof(struct Node)) return ptr;
+    if (currSize == alignSize) return ptr;
 
     if (currSize >= pageSize * DEFAULT_ARENA)
     {

@@ -185,9 +185,9 @@ void printTree(Node* node, int i)
 {
     if (node)
     {
-        cout << setw(8) << node << std::endl;
-        for (int j = 0; j < i * 2; ++j, cout << '\t');
-        cout << setw(8) << node->getKey();
+        cout << setw(sizeof(node) * 2) << node << std::endl;
+        for (int j = 0; j < i * (sizeof(node) / 2); ++j, cout << '\t');
+        cout << setw(sizeof(node) * 2) << node->getKey();
         if (SubNode* sn = node->nextSameKey)
         {
             size_t snA = 2;
@@ -195,22 +195,22 @@ void printTree(Node* node, int i)
             if (snA)
             {
                 cout << endl;
-                for (int j = 0; j < i * 2; ++j, cout << '\t');
-                cout << "(" << setw(6) << snA << ')';
+                for (int j = 0; j < i * (sizeof(node) / 2); ++j, cout << '\t');
+                cout << "(" << setw(sizeof(node) * 2 - 2) << snA << ')';
             }
         }
 
         if (node->right)
         {
-            cout << " ------ ";
+            cout << setw(sizeof(node) * 2) << " ------ ";
             printTree(node->right, i + 1);
         }
         if (node->left)
         {
             cout << endl;
-            for (int j = 0; j < i * 2; ++j, cout << '\t');
-            cout << "    |   "<< endl;
-            for (int j = 0; j < i * 2; ++j, cout << '\t');
+            for (int j = 0; j < i * (sizeof(node) / 2); ++j, cout << '\t');
+            cout << setw(sizeof(node) * 2) << "    |   "<< endl;
+            for (int j = 0; j < i * (sizeof(node) / 2); ++j, cout << '\t');
             printTree(node->left, i);
         }
     }
