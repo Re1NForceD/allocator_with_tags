@@ -408,40 +408,27 @@ TEST(Allocator, test_alv_tree)
     mem_show();
 }
 
-size_t calcCheckSum(block* b)
+size_t calcCheckSum(size_t* b)
 {
-    if (b->getCurrentSize() <= sizeof(size_t)) return 0;
-    size_t* val = (size_t*)(b + 1);
-    size_t sum = 0;
-    while ((char*)val != ((char*)(b + 1) + sizeof(size_t) * 3))
-    {
-        if ((char*)val == (char*)(b + 1)) {
-            val++;
-            continue;
-        }
-        sum += *val;
-        val++;
-    }
-    return sum;
+    return b[1] + b[2];
 }
 
-void setCheckSum(block* b)
+void setCheckSum(size_t* b)
 {
-    size_t* blockCheckSum = (size_t*)(b + 1);
-    *blockCheckSum = calcCheckSum(b);
+    *b = calcCheckSum(b);
 }
 
-size_t getCheckSum(block* b)
+size_t getCheckSum(size_t* b)
 {
-    return *(size_t*)(b + 1);
+    return *b;
 }
 
-void printValues(block* b)
+void printValues(size_t* b)
 {
-    std::cout << getCheckSum(b) << " " << *((size_t*)(b + 1) + 1) << " " << *((size_t*)(b + 1) + 2) << std::endl;
+    std::cout << getCheckSum(b) << " " << b[1] << " " << b[2] << std::endl;
 }
 
-bool validateBlock(block* b)
+bool validateBlock(size_t* b)
 {
     if (getCheckSum(b) == calcCheckSum(b)) return true;
     else return false;
@@ -458,15 +445,14 @@ TEST(Allocator, test_auto_tester_check_sum)
     size_t blockAmount = 100;
     const size_t newBlockMinSize = sizeof(struct block) + sizeof(struct Node);
     const size_t bS = 3 * sizeof(size_t) + newBlockMinSize;
-    block** allocBlocks = (block**)mem_alloc(blockAmount * sizeof(block*));
+    size_t** allocBlocks = (size_t**)mem_alloc(blockAmount * sizeof(block*));
 
     srand(time(nullptr));
     for (size_t i{ 0 }; i < blockAmount; ++i)
     {
-        allocBlocks[i] = (block*)mem_alloc(bS) - 1;
-        size_t* content = (size_t*)(allocBlocks[i] + 1);
-        content[1] = (size_t)(rand() % 10000 + 1);
-        content[2] = (size_t)(rand() % 10000 + 1);
+        allocBlocks[i] = (size_t*)mem_alloc(bS);
+        allocBlocks[i][1] = (size_t)(rand() % 10000 + 1);
+        allocBlocks[i][2] = (size_t)(rand() % 10000 + 1);
         setCheckSum(allocBlocks[i]);
     }
 
@@ -474,30 +460,33 @@ TEST(Allocator, test_auto_tester_check_sum)
 
     for (size_t i{ 0 }; i < blockAmount; ++i)
     {
-        std::cout << i;
-        EXPECT_TRUE(getCheckSum(allocBlocks[i]) == calcCheckSum(allocBlocks[i]));
+        size_t j = rand() % blockAmount;
+        if (!allocBlocks[j]) continue;
 
-        auto randV = rand() % 3 + 1;
+        std::cout << j;
+        EXPECT_TRUE(getCheckSum(allocBlocks[j]) == calcCheckSum(allocBlocks[j]));
+
+        auto randV = rand() % 3;
 
         if (randV % 3 == 0)
         {
-            std::cout << " realloc in-place " << allocBlocks[i] << std::endl;
-            auto checkSum = getCheckSum(allocBlocks[i]);
-            allocBlocks[i] = (block*)mem_realloc(allocBlocks[i] + 1, bS - newBlockMinSize) - 1;
-            ASSERT_EQ(getCheckSum(allocBlocks[i]), checkSum) << i;
+            std::cout << " realloc in-place " << allocBlocks[j] << std::endl;
+            auto checkSum = getCheckSum(allocBlocks[j]);
+            allocBlocks[j] = (size_t*)mem_realloc(allocBlocks[j], bS - newBlockMinSize);
+            ASSERT_EQ(getCheckSum(allocBlocks[j]), checkSum) << j;
         }
         else if (randV % 3 == 1)
         {
-            std::cout << " realloc new-place " << allocBlocks[i] << std::endl;
-            auto checkSum = getCheckSum(allocBlocks[i]);
-            allocBlocks[i] = (block*)mem_realloc(allocBlocks[i] + 1, bS + 16) - 1;
-            ASSERT_EQ(getCheckSum(allocBlocks[i]), checkSum) << i;
+            std::cout << " realloc new-place " << allocBlocks[j] << std::endl;
+            auto checkSum = getCheckSum(allocBlocks[j]);
+            allocBlocks[j] = (size_t*)mem_realloc(allocBlocks[j], bS + 16);
+            ASSERT_EQ(getCheckSum(allocBlocks[j]), checkSum) << j;
         }
         else
         {
-            std::cout << " free " << allocBlocks[i] << std::endl;
-            mem_free(allocBlocks[i] + 1);
-            allocBlocks[i] = nullptr;
+            std::cout << " free " << allocBlocks[j] << std::endl;
+            mem_free(allocBlocks[j]);
+            allocBlocks[j] = nullptr;
         }
     }
 
@@ -507,7 +496,7 @@ TEST(Allocator, test_auto_tester_check_sum)
     {
         if (!allocBlocks[i]) continue;
         ASSERT_EQ(getCheckSum(allocBlocks[i]), calcCheckSum(allocBlocks[i])) << i;
-        mem_free(allocBlocks[i] + 1);
+        mem_free(allocBlocks[i]);
     }
     mem_free(allocBlocks);
 
