@@ -35,7 +35,8 @@ block* kernel_alloc(size_t bytes, bool defaultPage)
                                         pages * (pageSize ? pageSize : 1),
                                         MEM_RESERVE | MEM_COMMIT,
                                         PAGE_READWRITE);
-    if (!arena) // maximum possible 1934423032
+
+    if (!arena) // too big memory request
         throw std::string("Error while allocating memory!");
     else
         std::cout << "Allocated arena " << arena << std::endl;

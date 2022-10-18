@@ -66,9 +66,17 @@ void* mem_alloc(size_t size)
     auto alignSize = ROUND_BYTES(size);
     if (alignSize < sizeof(struct Node)) alignSize = sizeof(struct Node);
     std::cout << "Align for " << ALIGN << "... Align size is " << alignSize << " bytes" << std::endl;
-    if (alignSize < size) throw std::string("Size overflow while aligns!");
+    if (alignSize < size) return nullptr; // overflow
 
-    block* header = findFit(alignSize);
+    block* header;
+    try
+    {
+        header = findFit(alignSize);
+    }
+    catch (...)
+    {
+        return nullptr; // too big memory request
+    }
 
     if (alignSize < pageSize * DEFAULT_ARENA)
     {
@@ -103,7 +111,7 @@ block* findFit(size_t size)
     }
     else
     {
-        if (!arenas.addArena(kernel_alloc(size + sizeof(struct block)))) throw std::string("out of space for arenas");
+        if (!arenas.addArena(kernel_alloc(size + sizeof(struct block)))) return nullptr; // out of space for arenas
         return arenas.getListPtr()[arenas.getCount() - 1];
     }
 }
@@ -143,19 +151,8 @@ void* mem_realloc(void* ptr, size_t size)
         if (currSize >> 3 >= (alignSize > currSize ? alignSize - currSize : currSize - alignSize)) return ptr;
         else
         {
-            block* newBlock = findFit(alignSize);
-            newBlock->setBusy(true);
-
-            if (alignSize < pageSize * DEFAULT_ARENA)
-            {
-                block* fromSplit = newBlock->split(alignSize);
-
-                if (fromSplit)
-                {
-                    block* merged = fromSplit->merge();
-                    treeRoot = insertNode(treeRoot, newNode(merged));
-                }
-            }
+            block* newBlock = (block*)mem_alloc(alignSize) - 1;
+            if (!newBlock) return nullptr;
 
             memcpy(newBlock + 1, ptr, (alignSize > currSize ? currSize : alignSize));
 
@@ -191,15 +188,8 @@ void* mem_realloc(void* ptr, size_t size)
             }
             else // increase size new place
             {
-                block* newBlock = findFit(alignSize);
-                block* fromSplit = newBlock->split(alignSize);
-                newBlock->setBusy(true);
-
-                if (fromSplit)
-                {
-                    block* merged = fromSplit->merge();
-                    treeRoot = insertNode(treeRoot, newNode(merged));
-                }
+                block* newBlock = (block*)mem_alloc(alignSize) - 1;
+                if (!newBlock) return nullptr;
 
                 memcpy(newBlock + 1, ptr, currSize);
 

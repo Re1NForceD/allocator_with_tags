@@ -33,7 +33,6 @@ TEST(Allocator, MAX_SIZE_overflow_test)
     GTEST_SKIP();
 #endif
     size_t* allocBlock = (size_t*)mem_alloc(SIZE_MAX);
-    std::cout << "ptr size " << sizeof(allocBlock) << std::endl;
     EXPECT_THAT(getBlock(allocBlock)->getCurrentSize(), INRANGE(SIZE_MAX));
     mem_show();
     mem_free(allocBlock);
